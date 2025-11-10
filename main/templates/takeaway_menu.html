@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+body {
+    background: rgb(48, 47, 47);
+    font-family: Arial, sans-serif;
+}
+
+.menu-card {
+    position: relative;
+    height: 150px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: #000;
+}
+
+.menu-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(70%);
+    transition: filter 0.3s ease;
+    display: block;
+}
+
+.menu-card:hover img {
+    filter: brightness(50%);
+}
+
+.menu-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 25px rgba(248, 245, 245, 0.8);
+}
+
+.menu-title {
+    position: absolute;
+    bottom: 50px;
+    left: 20px;
+    right: 20px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    line-height: 1.2;
+    text-shadow: 2px 2px 10px rgba(247, 241, 241, 0.8);
+    pointer-events: none;
+}
+
+.card-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(247, 244, 244, 0.6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+
+/* ## THE CHANGE IS HERE ## I increased the width */
+.card-controls .qty-input {
+    width: 65px; 
+}
+
+#orderSummary {
+    background-color: rgba(0,0,0,0.7);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+#orderSummary .order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#orderSummary .order-item button {
+    background: none;
+    border: none;
+    color: red;
+    cursor: pointer;
+}
+
+#orderTotal {
+    margin-top: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* ✅ ستايل أزرار الفلترة */
+.section-filters {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+.section-filters button {
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    color: white;
+}
+.section-filters button:hover { transform: scale(1.1); }
+.section-filters button.active {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+}
+
+/* ✅ ألوان مختلفة */
+.all-btn      { background: #0d6efd; }       /* أزرق */
+.buffet-btn   { background: #198754; }       /* أخضر */
+.barista-btn  { background: #8B4513; }       /* بني */
+.canteen-btn  { background: #fd7e14; }       /* برتقالي */
+.addons-btn   { background: #6f42c1; }       /* بنفسجي */
+</style>
+
+<div class="container py-5">
+  <h2 class="text-center text-light mb-4">🥡 Takeaway Menu</h2>
+
+  <div class="section-filters">
+    <button class="filter-btn active all-btn" data-section="all">📋 كل الأقسام</button>
+    {% for sec, sec_name in sections_display %}
+      {% if sec == "mat3am" %}
+        <button class="filter-btn buffet-btn" data-section="{{ sec }}">🍽️ {{ sec_name }}</button>
+      {% elif sec == "barista" %}
+        <button class="filter-btn barista-btn" data-section="{{ sec }}">☕ {{ sec_name }}</button>
+      {% elif sec == "canteen" %}
+        <button class="filter-btn canteen-btn" data-section="{{ sec }}">🍔 {{ sec_name }}</button>
+      {% elif sec == "7alak" %}
+        <button class="filter-btn canteen-btn" data-section="{{ sec }}">💈 {{ sec_name }}</button>
+      {% elif sec == "shesha" %}
+        <button class="filter-btn canteen-btn" data-section="{{ sec }}">💨 {{ sec_name }}</button>
+      {% elif sec == "addons" %}
+        <button class="filter-btn addons-btn" data-section="{{ sec }}">➕ {{ sec_name }}</button>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="row g-4" id="menuContainer">
+    {% for item in menu_items %}
+    <div class="col-md-4 col-sm-6 menu-card-wrapper" data-section="{{ item.section }}">
+      <div class="menu-card" data-id="{{ item.id }}" data-price="{{ item.price }}">
+        {% if item.image %}
+          <img src="{{ item.image.url }}" alt="{{ item.name }}">
+        {% else %}
+          <img src="/static/default.png" alt="{{ item.name }}">
+        {% endif %}
+        <div class="menu-title">{{ item.name }}</div>
+
+        <div class="card-controls">
+          <div class="d-flex align-items-center">
+            <button class="btn btn-outline-danger btn-sm qty-minus">−</button>
+            <input type="number" class="form-control text-center mx-2 qty-input" value="0" min="0">
+            <button class="btn btn-outline-success btn-sm qty-plus">+</button>
+          </div>
+
+          <button class="btn btn-primary btn-sm add-to-order"
+                  data-id="{{ item.id }}"
+                  data-name="{{ item.name }}"
+                  data-price="{{ item.price }}">
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="orderSummary" class="text-center">
+    <h4>Your Order</h4>
+    <div id="orderItemsList"></div>
+    <div id="orderTotal">Total: $0.00</div>
+    <button class="btn btn-danger mt-2" id="clearOrder">Clear Order</button>
+    <!-- ✅ خانة الملاحظة -->
+    <div class="mt-3">
+      <textarea id="orderNote" class="form-control" rows="2" placeholder="📝 اكتب ملاحظة على الأوردر (اختياري)"></textarea>
+    </div>
+
+    <div class="mt-4 text-center">
+      <button class="btn btn-success" id="confirmOrder">✅ Confirm Takeaway Order</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let orderItems = [];
+
+// ✅ فلترة الكروت حسب القسم
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+
+    const selected = this.dataset.section;
+    document.querySelectorAll(".menu-card-wrapper").forEach(card => {
+      if (selected === "all" || card.dataset.section === selected) {
+        card.style.display = "block";
+      } else {
+        card.style.display = "none";
+      }
+    });
+  });
+});
+
+// تعديل الكمية
+document.addEventListener("click", (e) => {
+  // ## THE CHANGE IS HERE ## Improved the logic slightly for stability
+  if (e.target.classList.contains("qty-minus")) {
+    let input = e.target.closest('.d-flex').querySelector(".qty-input");
+    let currentValue = parseInt(input.value, 10) || 0;
+    input.value = Math.max(0, currentValue - 1);
+  }
+
+  if (e.target.classList.contains("qty-plus")) {
+    let input = e.target.closest('.d-flex').querySelector(".qty-input");
+    let currentValue = parseInt(input.value, 10) || 0;
+    input.value = currentValue + 1;
+  }
+
+  // ✅ إضافة الصنف مع check من السيرفر
+  if (e.target.classList.contains("add-to-order")) {
+    let card = e.target.closest(".menu-card");
+    let itemId = e.target.dataset.id;
+    let itemName = e.target.dataset.name;
+    let itemPrice = parseFloat(e.target.dataset.price);
+    let qty = parseInt(card.querySelector(".qty-input").value);
+
+    if (qty <= 0) {
+      alert("يرجى تحديد الكمية!");
+      return;
+    }
+
+    fetch("{% url 'check_menuitem' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify({ menuitem_id: itemId, quantity: qty })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.ok) {
+        // Check if item already exists to update quantity instead of adding new
+        const existingItemIndex = orderItems.findIndex(item => item.menuitem_id === itemId);
+        if (existingItemIndex > -1) {
+            orderItems[existingItemIndex].quantity += qty;
+        } else {
+            orderItems.push({
+              menuitem_id: itemId,
+              name: itemName,
+              price: itemPrice,
+              quantity: qty
+            });
+        }
+        updateOrderSummary();
+        card.querySelector(".qty-input").value = 0; // Reset input after adding
+        
+      } else {
+        if (data.missing) {
+          let msg = "❌ المواد الناقصة:\n\n";
+          data.missing.forEach(m => { msg += "- " + m + "\n"; });
+          alert(msg);
+        } else {
+          alert("خطأ: " + (data.error || "غير معروف"));
+        }
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("خطأ في الاتصال بالسيرفر");
+    });
+  }
+});
+
+// تحديث سلة الأوردر
+function updateOrderSummary() {
+  const orderItemsList = document.getElementById("orderItemsList");
+  orderItemsList.innerHTML = "";
+
+  let totalPrice = 0;
+
+  orderItems.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.classList.add("order-item");
+
+    let subtotal = (item.price * item.quantity).toFixed(2);
+    totalPrice += parseFloat(subtotal);
+
+    div.innerHTML = `
+      <span>${item.quantity} x ${item.name} ($${item.price}) = <strong>$${subtotal}</strong></span>
+      <button onclick="removeItem(${index})">Delete</button>
+    `;
+    orderItemsList.appendChild(div);
+  });
+
+  document.getElementById("orderTotal").innerText = `Total: $${totalPrice.toFixed(2)}`;
+}
+
+// إزالة صنف من السلة
+function removeItem(index) {
+  orderItems.splice(index, 1);
+  updateOrderSummary();
+}
+
+// إرسال الأوردر عند التأكيد
+document.getElementById("confirmOrder").addEventListener("click", () => {
+  if (orderItems.length === 0) {
+    alert("يرجى إضافة أصناف أولاً!");
+    return;
+  }
+
+  const note = document.getElementById("orderNote").value.trim(); // ✅ نطلعها هنا
+
+  fetch("{% url 'create_takeaway_order' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCSRFToken(),
+    },
+    body: JSON.stringify({ items: orderItems, note: note }) // ✅ نسيب دي بس
+  })
+  .then((res) => res.json())
+  .then((data) => {
+    if (data.error && data.missing) {
+      let msg = "❌ المواد الناقصة:\n\n";
+      data.missing.forEach((m) => { msg += "- " + m + "\n"; });
+      alert(msg);
+    } else if (data.success) {
+      orderItems = [];
+      updateOrderSummary();
+      window.location.href = "{% url 'orders_list' %}";
+    } else {
+      alert("حدث خطأ أثناء إضافة الأوردر.");
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+    alert("خطأ في الشبكة. حاول مرة أخرى.");
+  });
+});
+
+
+// استرجاع CSRF Token
+function getCSRFToken() {
+  const name = "csrftoken=";
+  const parts = document.cookie ? document.cookie.split(";") : [];
+  for (let c of parts) {
+    c = c.trim();
+    if (c.startsWith(name)) return decodeURIComponent(c.substring(name.length));
+  }
+  return "";
+}
+
+// حذف جميع العناصر من السلة
+document.getElementById("clearOrder").addEventListener("click", () => {
+  orderItems = [];
+  updateOrderSummary();
+});
+</script>
+
+{% endblock %}

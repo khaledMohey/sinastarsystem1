@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-5">
+  <h2 class="mb-4 text-dark">📋 Orders</h2>
+
+  <!-- تقرير ملخص -->
+  <div class="alert alert-info d-flex justify-content-between">
+    <div>
+      <strong>Total Orders:</strong> {{ total_orders }}
+    </div>
+    <div>
+      <strong>Total Sales (شامل الضريبة):</strong> ${{ total_sales }}
+    </div>
+  </div>
+
+  <!-- فلاتر النوع -->
+  <div class="mb-3">
+    <form method="get" action="" class="mb-3 d-flex">
+      <input type="hidden" name="type" value="{{ active_filter }}">
+      <input type="hidden" name="date" value="{{ date_filter }}">
+      <input type="text" name="cashier" class="form-control me-2" 
+             placeholder="ابحث باسم الكاشير" value="{{ cashier_filter }}">
+      <button type="submit" class="btn btn-primary">بحث</button>
+      
+      <select name="payment" class="form-select me-2" style="max-width: 200px;">
+        <option value="">💳 All Payments</option>
+        <option value="cash" {% if payment_filter == 'cash' %}selected{% endif %}>💵 كاش</option>
+        <option value="vodafone" {% if payment_filter == 'vodafone' %}selected{% endif %}>📱 فودافون كاش</option>
+        <option value="moagel" {% if payment_filter == 'moagel' %}selected{% endif %}>🕓 مؤجل</option>
+      </select>
+    </form>
+    <a href="{% url 'pending_items' %}" class="btn btn-secondary mb-3">🔎 View Pending Items</a>
+
+    <a href="?type=all&date={{ date_filter }}" class="btn {% if active_filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      All <span class="badge bg-light text-dark">{{ all_count }}</span>
+    </a>
+    <a href="?type=cafe&date={{ date_filter }}" class="btn {% if active_filter == 'cafe' %}btn-info text-white{% else %}btn-outline-info{% endif %}">
+      Cafe <span class="badge bg-light text-dark">{{ cafe_count }}</span>
+    </a>
+    <a href="?type=takeaway&date={{ date_filter }}" class="btn {% if active_filter == 'takeaway' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">
+      Takeaway <span class="badge bg-dark text-white">{{ takeaway_count }}</span>
+    </a>
+    <a href="?type=qeta3&date={{ date_filter }}" class="btn {% if active_filter == 'qeta3' %}btn-success{% else %}btn-outline-success{% endif %}">
+      قطاع <span class="badge bg-light text-dark">{{ qeta3_count }}</span>
+    </a>
+  </div>
+
+  <!-- فلاتر التاريخ -->
+  <div class="mb-4">
+    <a href="?type={{ active_filter }}&date=all" class="btn {% if date_filter == 'all' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">All Time</a>
+    <a href="?type={{ active_filter }}&date=today" class="btn {% if date_filter == 'today' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Today</a>
+    <a href="?type={{ active_filter }}&date=week" class="btn {% if date_filter == 'week' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">This Week</a>
+    <a href="?type={{ active_filter }}&date=month" class="btn {% if date_filter == 'month' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">This Month</a>
+    <a href="{% url 'daily_closing' %}" class="btn btn-danger">📊 Daily Closing</a>
+    <a href="{% url 'extra_expenses' %}" class="btn btn-secondary">📒 نسريات وتبس</a>
+  </div>
+
+  <table class="table table-dark table-striped table-bordered align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Order Place</th>
+        <th>Cashier</th>
+        <th>Created At</th>
+        <th>Status</th>
+        <th>Subtotal</th>
+        <th>Discount (10%)</th>
+        <th>Tax (14%)</th>
+        <th>Total</th>
+        <th>📝 Note</th> <!-- ✅ العمود الجديد -->
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr>
+        <td>#{{ order.id }}</td>
+        <td>
+          {% if order.order_type == "cafe" %}
+            <span class="badge bg-info">In Cafe</span>
+          {% elif order.order_type == "takeaway" %}
+            <span class="badge bg-warning text-dark">Takeaway</span>
+          {% elif order.order_type == "qeta3" %}
+            <span class="badge bg-success">Qeta3</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if order.order_type == "cafe" %}
+            🪑 Table {{ order.table_number }}
+          {% elif order.order_type == "takeaway" %}
+            🛍️ Takeaway
+          {% elif order.order_type == "qeta3" %}
+            👮 {% if order.officer %} {{ order.officer.name }} {% else %} غير محدد {% endif %}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          {% if order.cashier %}
+            👤 {{ order.cashier.username }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          {% if order.is_paid %}
+            <span class="badge bg-success">
+              Paid ({{ order.get_payment_method_display }})
+            </span>
+          {% else %}
+            <span class="badge bg-danger">Unpaid</span>
+          {% endif %}
+        </td>
+
+        <td>${{ order.subtotal }}</td>
+        <td>${{ order.discount }}</td>
+        <td>${{ order.tax }}</td>
+        <td><strong>${{ order.total }}</strong></td>
+
+        <!-- ✅ عمود الملاحظة -->
+        <td>
+          {% if order.note %}
+            {{ order.note }}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+
+        <td>
+          <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-primary">View</a>
+          <a href="{% url 'edit_order_from_list' order.id %}" class="btn btn-sm btn-warning">✏️ Edit</a>
+          <a href="{% url 'delete_order_from_list' order.id %}" class="btn btn-sm btn-danger">🗑 Delete</a>
+
+          {% if not order.is_paid %}
+            <a href="{% url 'pay_order' order.id %}" class="btn btn-success">Pay Now</a>
+          {% else %}
+            <span class="badge bg-success">Paid</span>
+          {% endif %}
+          
+          <a href="{% url 'print_order' order.id %}" target="_blank" class="btn btn-sm btn-info">
+            🧾 Print
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="12" class="text-center">No orders found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+<script>
+// 🎵 إنشاء الصوت للتنبيه
+const newOrderSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+
+// 🆔 آخر ID موجود حاليًا
+let lastOrderId = {{ orders.0.id|default:0 }};
+
+
+// ⚡️ دالة جلب الطلبات الجديدة
+function fetchNewOrders() {
+    fetch(`/get_latest_orders/?last_id=${lastOrderId}`)
+        .then(response => response.json())
+        .then(data => {
+            const newOrders = data.orders;
+            if (newOrders.length > 0) {
+                const tableBody = document.querySelector("table tbody");
+
+                // 🔔 تشغيل التنبيه الصوتي
+                newOrderSound.play().catch(e => console.log("Audio autoplay blocked:", e));
+
+                newOrders.forEach(order => {
+                    const row = document.createElement("tr");
+                    row.classList.add("table-success"); // لون مميز للطلب الجديد
+                    row.innerHTML = `
+                        <td>#${order.id}</td>
+                        <td>${order.order_type}</td>
+                        <td>${order.table_number ? '🪑 Table ' + order.table_number : '-'}</td>
+                        <td>${order.cashier || '-'}</td>
+                        <td>${order.created_at}</td>
+                        <td>${order.is_paid ? 
+                            '<span class="badge bg-success">Paid (' + order.payment_method + ')</span>' : 
+                            '<span class="badge bg-danger">Unpaid</span>'}</td>
+                        <td>$${order.subtotal}</td>
+                        <td>$${order.discount}</td>
+                        <td>$${order.tax}</td>
+                        <td><strong>$${order.total}</strong></td>
+                        <td>${order.note || '<span class="text-muted">—</span>'}</td>
+                        <td>
+                            <a href="/order/${order.id}/" class="btn btn-sm btn-primary">View</a>
+                            <a href="/order/${order.id}/edit/" class="btn btn-sm btn-warning">✏️ Edit</a>
+                            <a href="/order/${order.id}/delete/" class="btn btn-sm btn-danger">🗑 Delete</a>
+                        </td>`;
+                    tableBody.prepend(row);
+
+                    // ✨ فلاش خفيف عند ظهور الطلب الجديد
+                    row.style.transition = "background-color 1s ease";
+                    setTimeout(() => row.style.backgroundColor = "", 2000);
+
+                    lastOrderId = Math.max(lastOrderId, order.id);
+                });
+            }
+        })
+        .catch(error => console.error('Error fetching new orders:', error));
+}
+
+// 🔄 تحديث تلقائي كل 5 ثواني
+setInterval(fetchNewOrders, 5000);
+</script>
+
+{% endblock %}

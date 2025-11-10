@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Material History</h2>
+
+<table border="1">
+    <thead>
+        <tr>
+            <th>Material</th>
+            <th>Quantity</th>
+            <th>Cost</th>
+            <th>User</th>
+            <th>Date/Time</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for record in history %}
+        <tr>
+            <td>{{ record.material.name }}</td>
+            <td>{{ record.quantity }}</td>
+            <td>{{ record.cost }}</td>
+            <td>{% if record.user %}{{ record.user.username }}{% else %}System{% endif %}</td>
+            <td>{{ record.timestamp }}</td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="5">No history found</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

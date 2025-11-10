@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+  <h2 class="mb-4">📝 Edit Order #{{ order.id }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    <!-- بيانات الأوردر الأساسية -->
+    {{ form.as_p }}
+
+    <h3>Order Items</h3>
+    {{ formset.management_form }}
+
+    <table id="order-items" class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Menu Item</th>
+          <th>Quantity</th>
+          <th>Delete?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in formset %}
+        <tr class="order-item-form">
+          <td>{{ f.menuitem }}</td>
+          <td>{{ f.quantity }}</td>
+          <td>
+            {% if f.instance.pk %}
+              {{ f.DELETE }} Delete
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- فورم فاضي نستخدمه كـ template -->
+    <table style="display:none;">
+      <tr id="empty-form" class="order-item-form">
+        <td>{{ formset.empty_form.menuitem }}</td>
+        <td>{{ formset.empty_form.quantity }}</td>
+        <td></td>
+      </tr>
+    </table>
+
+    <button type="button" id="add-item" class="btn btn-info">➕ Add another item</button>
+    <br><br>
+    <button type="submit" class="btn btn-success">💾 Save Changes</button>
+    <a href="{% url 'orders_list' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const addButton = document.getElementById("add-item");
+    const formsetTable = document.getElementById("order-items").querySelector("tbody");
+
+    // ✅ نجيب الـ prefix من أي input hidden جوه management form
+    const managementForm = document.querySelector("[name$='-TOTAL_FORMS']");
+    const prefix = managementForm.name.replace("-TOTAL_FORMS", "");
+    const totalForms = managementForm;
+
+    addButton.addEventListener("click", function() {
+        let formIndex = parseInt(totalForms.value);
+        let newFormHtml = document.getElementById("empty-form").outerHTML.replace(/__prefix__/g, formIndex);
+        
+        // نحول الـ string لعنصر
+        let tempDiv = document.createElement("tbody");
+        tempDiv.innerHTML = newFormHtml;
+        let newRow = tempDiv.firstElementChild;
+
+        // reset values
+        newRow.querySelectorAll("input, select").forEach(el => {
+            if (el.tagName === "INPUT") el.value = (el.type === "number") ? 1 : "";
+        });
+
+        formsetTable.appendChild(newRow);
+        totalForms.value = formIndex + 1;
+    });
+});
+</script>
+{% endblock %}

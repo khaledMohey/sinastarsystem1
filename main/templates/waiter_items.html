@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-3">📦 أوردرات جاهزة للويتر</h3>
+
+{% for data in orders %}
+  <div class="card mb-3 bg-success text-light" id="waiter-order-{{ data.order.id }}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <strong>#{{ data.order.id }}</strong>
+        {% if data.order.order_type == "cafe" %}
+          <span class="badge bg-info">In Cafe</span>
+          🪑 Table {{ data.order.table_number }}
+        {% else %}
+          <span class="badge bg-warning text-dark">Takeaway</span>
+        {% endif %}
+      </div>
+      <a href="{% url 'waiter_mark_done' data.order.id %}" 
+         class="btn btn-light btn-sm">✔️ استلم</a>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-bordered table-striped table-dark m-0">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>قسم</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in data.items %}
+            <tr>
+              <td>{{ item.menuitem.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>
+                {% if item.menuitem.section == "barista" %}
+                  ☕ باريستا
+                {% elif item.menuitem.section == "mat3am" %}
+                  🍽️ مطعم
+                {% elif item.menuitem.section == "canteen" %}
+                  🍽️ كانتين
+                {% elif item.menuitem.section == "7alak" %}
+                  🍽️ حلاق
+                {% elif item.menuitem.section == "shesha" %}
+                  🍽️ شيشة
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% empty %}
+  <p class="text-center">لا يوجد أوردرات جاهزة حالياً 🚶‍♂️</p>
+{% endfor %}
+{% endblock %}

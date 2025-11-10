@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+body {
+    background: rgb(48, 47, 47);
+    font-family: Arial, sans-serif;
+}
+
+/* زرائر الأقسام */
+.section-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+
+    position: sticky;   /* ✅ ثابتة */
+    top: 70px;          /* المسافة من أعلى الصفحة */
+    z-index: 1000;      /* فوق باقي العناصر */
+    background: rgb(48, 47, 47); /* خلفية نفس لون البودي */
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.section-tab {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    background: linear-gradient(135deg, #444, #222);
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.section-tab:hover {
+    transform: translateY(-3px);
+    background: linear-gradient(135deg, #666, #333);
+}
+.section-tab.active {
+    background: linear-gradient(135deg, #28a745, #218838);
+    box-shadow: 0 6px 15px rgba(0, 255, 128, 0.6);
+}
+
+/* كروت المنيو */
+.menu-card {
+    position: relative;
+    height: 150px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: #000;
+    opacity: 0;
+    transform: scale(0.9);
+    animation: fadeIn 0.5s forwards;
+}
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+.menu-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(70%);
+    transition: filter 0.3s ease;
+    display: block;
+}
+.menu-card:hover img { filter: brightness(50%); }
+.menu-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 25px rgba(248, 245, 245, 0.8);
+}
+.menu-title {
+    position: absolute;
+    bottom: 50px;
+    left: 20px;
+    right: 20px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    line-height: 1.2;
+    text-shadow: 2px 2px 10px rgba(247,241,241,0.8);
+    pointer-events: none;
+}
+.card-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(247,244,244,0.6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+/* ## THE CHANGE IS HERE ## I increased the width */
+.card-controls .qty-input { width: 65px; }
+
+#orderSummary {
+    background-color: rgba(0,0,0,0.7);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+#orderSummary .order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+#orderSummary .order-item button {
+    background: none;
+    border: none;
+    color: red;
+    cursor: pointer;
+}
+#orderTotal {
+    margin-top: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+</style>
+
+<div class="container py-5">
+  <h2 class="text-center text-light mb-4">🥡 Qeta3 Menu</h2>
+
+  <div class="section-tabs">
+    <button class="section-tab active" data-section="all">كل الأقسام</button>
+    {% for sec, sec_name in sections_display %}
+      <button class="section-tab" data-section="{{ sec }}">{{ sec_name }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="row g-4" id="menuContainer">
+    {% for item in menu_items %}
+    <div class="col-md-4 col-sm-6 menu-card-wrapper" data-section="{{ item.section }}">
+      <div class="menu-card" data-id="{{ item.id }}" data-price="{{ item.price }}">
+        {% if item.image %}
+          <img src="{{ item.image.url }}" alt="{{ item.name }}">
+        {% else %}
+          <img src="/static/default.png" alt="{{ item.name }}">
+        {% endif %}
+        <div class="menu-title">{{ item.name }}</div>
+
+        <div class="card-controls">
+          <div class="d-flex align-items-center">
+            <button class="btn btn-outline-danger btn-sm qty-minus">−</button>
+            <input type="number" class="form-control text-center mx-2 qty-input" value="0" min="0">
+            <button class="btn btn-outline-success btn-sm qty-plus">+</button>
+          </div>
+          <button class="btn btn-primary btn-sm add-to-order"
+                  data-id="{{ item.id }}"
+                  data-name="{{ item.name }}"
+                  data-price="{{ item.price }}">
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="orderSummary" class="text-center">
+    <h4>Your Order</h4>
+    <div id="orderItemsList"></div>
+    <div id="orderTotal">Total: $0.00</div>
+    <button class="btn btn-danger mt-2" id="clearOrder">Clear Order</button>
+
+    <div class="mt-3">
+      <label class="form-label text-light">اختر اسم الظابط:</label>
+      <select id="officerSelect" class="form-select">
+        <option value="">-- اختر --</option>
+        {% for officer in officers %}
+          <option value="{{ officer.id }}" data-discount="{{ officer.discount_rate }}">
+            {{ officer.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+
+    <div class="mt-4 text-center">
+      <button class="btn btn-success" id="confirmOrder">Confirm Qeta3 Order</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let orderItems = [];
+
+// ✅ فلترة الأقسام بالزرائر
+document.querySelectorAll(".section-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".section-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    const selected = tab.dataset.section;
+    document.querySelectorAll(".menu-card-wrapper").forEach(card => {
+      if (selected === "all" || card.dataset.section === selected) {
+        card.style.display = "block";
+        card.style.animation = "fadeIn 0.5s forwards";
+      } else {
+        card.style.display = "none";
+      }
+    });
+  });
+});
+
+// ✅ تعديل الكمية و إضافة للأوردر
+document.addEventListener("click", (e) => {
+  // ## THE CHANGE IS HERE ## Improved the logic for stability
+  if (e.target.classList.contains("qty-minus")) {
+    let input = e.target.closest('.d-flex').querySelector(".qty-input");
+    let currentValue = parseInt(input.value, 10) || 0;
+    input.value = Math.max(0, currentValue - 1);
+  }
+
+  if (e.target.classList.contains("qty-plus")) {
+    let input = e.target.closest('.d-flex').querySelector(".qty-input");
+    let currentValue = parseInt(input.value, 10) || 0;
+    input.value = currentValue + 1;
+  }
+
+  if (e.target.classList.contains("add-to-order")) {
+    let card = e.target.closest(".menu-card");
+    let input = card.querySelector(".qty-input");
+    let itemId = e.target.dataset.id;
+    let itemName = e.target.dataset.name;
+    let itemPrice = parseFloat(e.target.dataset.price);
+    let qty = parseInt(input.value);
+
+    if (qty <= 0) {
+      alert("يرجى تحديد الكمية!");
+      return;
+    }
+    
+    // ## THE CHANGE IS HERE ## Update quantity if item exists, otherwise add it
+    const existingItemIndex = orderItems.findIndex(item => item.menuitem_id === itemId);
+    if (existingItemIndex > -1) {
+        orderItems[existingItemIndex].quantity += qty;
+    } else {
+        orderItems.push({
+          menuitem_id: itemId,
+          name: itemName,
+          price: itemPrice,
+          quantity: qty
+        });
+    }
+    
+    updateOrderSummary();
+    input.value = 0; // Reset input field after adding
+  }
+});
+
+// Recalculate summary whenever the officer changes
+document.getElementById("officerSelect").addEventListener("change", updateOrderSummary);
+
+function updateOrderSummary() {
+  const orderItemsList = document.getElementById("orderItemsList");
+  orderItemsList.innerHTML = "";
+
+  let subtotal = 0;
+
+  orderItems.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.classList.add("order-item");
+
+    let itemTotal = (item.price * item.quantity).toFixed(2);
+    subtotal += parseFloat(itemTotal);
+
+    div.innerHTML = `
+      <span>${item.quantity} x ${item.name} ($${item.price}) = <strong>$${itemTotal}</strong></span>
+      <button onclick="removeItem(${index})">Delete</button>
+    `;
+    orderItemsList.appendChild(div);
+  });
+
+  // ✅ ناخد نسبة الخصم من option المختار
+  const officerSelect = document.getElementById("officerSelect");
+  let discountRate = parseFloat(officerSelect.selectedOptions[0]?.dataset.discount || "0");
+
+  let discount = subtotal * discountRate;
+  let total = subtotal - discount;
+
+  document.getElementById("orderTotal").innerHTML = `
+    Subtotal: $${subtotal.toFixed(2)} <br>
+    Discount (${(discountRate*100).toFixed(0)}%): -$${discount.toFixed(2)} <br>
+    <strong>Total: $${total.toFixed(2)}</strong>
+  `;
+}
+
+// ✅ إزالة صنف
+function removeItem(index) {
+  orderItems.splice(index, 1);
+  updateOrderSummary();
+}
+
+// ✅ إرسال الأوردر
+document.getElementById("confirmOrder").addEventListener("click", () => {
+  if (orderItems.length === 0) {
+    alert("يرجى إضافة أصناف أولاً!");
+    return;
+  }
+
+  const officerId = document.getElementById("officerSelect").value;
+  if (!officerId) {
+    alert("يرجى اختيار اسم الظابط قبل تأكيد الأوردر!");
+    return;
+  }
+
+  fetch("{% url 'create_qeta3_order' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCSRFToken(),
+    },
+    body: JSON.stringify({ items: orderItems, officer_id: officerId })
+  })
+  .then((res) => res.json())
+  .then((data) => {
+    if (data.success) {
+      orderItems = [];
+      updateOrderSummary();
+      window.location.href = "{% url 'orders_list' %}";
+    } else {
+      alert("خطأ: " + (data.error || "غير معروف"));
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+    alert("خطأ في الشبكة. حاول مرة أخرى.");
+  });
+});
+
+// ✅ CSRF
+function getCSRFToken() {
+  const name = "csrftoken=";
+  const parts = document.cookie ? document.cookie.split(";") : [];
+  for (let c of parts) {
+    c = c.trim();
+    if (c.startsWith(name)) return decodeURIComponent(c.substring(name.length));
+  }
+  return "";
+}
+
+// ✅ مسح الأوردر بالكامل
+document.getElementById("clearOrder").addEventListener("click", () => {
+  orderItems = [];
+  updateOrderSummary();
+});
+</script>
+
+{% endblock %}

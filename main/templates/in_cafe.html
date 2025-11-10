@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-5">
+  <h2 class="text-center text-dark mb-4">☕ In Caffe - Tables</h2>
+
+  <div class="row g-4">
+    {% for t in tables %}
+    <div class="col-md-3 col-sm-4">
+      <div class="card table-card shadow-sm text-center p-4 
+            {% if t.order %}bg-danger text-white{% else %}bg-light{% endif %}
+            {% if forloop.counter > 10 %} umbrella-table {% endif %}"
+            style="cursor: pointer; position: relative;"
+            data-bs-toggle="modal"
+            data-bs-target="#menuModal"
+            data-table="{{ t.number }}"
+            data-order="{{ t.order.id }}">
+        {% if forloop.counter <= 10 %}
+          <h4 class="fw-bold">Table {{ t.number }}</h4>
+        {% else %}
+          <div class="sea-table-icon mx-auto mb-2">
+            <i class="fa-solid fa-umbrella-beach fa-2x me-2"></i>
+            <i class="fa-solid fa-water fa-2x"></i>
+          </div>
+          <h5 class="fw-bold">Table {{ t.number }}</h5>
+        {% endif %}
+        {% if t.order %}
+          
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="modal fade" id="menuModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header d-flex flex-wrap align-items-center justify-content-between">
+        <h5 class="modal-title mb-2 mb-md-0">Menu - <span id="modalTable"></span></h5>
+
+        <div class="section-tabs ms-md-3 flex-grow-1 d-flex justify-content-center">
+          <button class="btn btn-section active" data-section="">كل الأقسام</button>
+          <button class="btn btn-section" data-section="barista">☕ باريستا</button>
+          <button class="btn btn-section" data-section="mat3am">🍽️ مطعم</button>
+          <button class="btn btn-section" data-section="canteen">🥪 كانتين</button>
+          <button class="btn btn-section" data-section="7alak">💈 حلاق</button>
+          <button class="btn btn-section" data-section="shesha">💨 شيشة</button>
+          <button class="btn btn-section" data-section="addons">➕ إضافات</button>
+        </div>
+
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-4" id="menuContainer">
+          {% for item in menu_items %}
+          <div class="col-md-2 col-sm-2 menu-item" data-section="{{ item.section }}">
+            <div class="card shadow-sm h-100">
+              {% if item.image %}
+                <img src="{{ item.image.url }}" class="card-img-top" style="height:90px;object-fit:cover;">
+              {% else %}
+                <img src="/static/default.png" class="card-img-top" style="height:100px;object-fit:cover;" alt="{{ item.name }}">
+              {% endif %}
+              <div class="card-body d-flex flex-column">
+                <h5 class="card-title">{{ item.name }}</h5>
+                <p class="fw-bold text-success">$ {{ item.price }}</p>
+
+                <div class="d-flex align-items-center mb-3">
+                  <button type="button" class="btn btn-outline-danger btn-sm qty-minus">−</button>
+                  <input type="number" class="form-control text-center mx-2 qty-input" value="1" min="1">
+                  <button type="button" class="btn btn-outline-success btn-sm qty-plus">+</button>
+                </div>
+
+                <button type="button" class="btn btn-primary mt-auto add-to-order"
+                        data-id="{{ item.id }}" data-price="{{ item.price }}" data-name="{{ item.name }}">
+                  Add to Order
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <hr class="text-light my-4">
+        <div id="orderSummary" class="bg-secondary text-light p-3 rounded">
+          <h5>🛒 Order for Table <span id="orderTableSummary"></span></h5>
+          <div id="orderItemsList" class="mb-2"></div>
+          <div class="d-flex justify-content-between mt-2">
+            <button type="button" class="btn btn-danger" id="clearOrder">Clear</button>
+            <button type="button" class="btn btn-success" id="confirmOrderFinal">Save Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.umbrella-table { border-radius: 50%; width: 140px; height: 100px; margin: auto;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  background: linear-gradient(135deg,#87CEFA,#fff); color:#003366; box-shadow:0 4px 10px rgba(0,0,0,.3);
+}
+.section-tabs { display:flex; gap:8px; flex-wrap:wrap; padding:5px 10px; border-radius:8px; }
+.btn-section { background:#343a40; color:#fff; border:none; padding:8px 18px; border-radius:20px; }
+.btn-section.active { background:#0d6efd; box-shadow:0 4px 10px rgba(13,110,253,.5); }
+.modal-header { flex-wrap:wrap; gap:10px; }
+.card.table-card { min-height:20px; padding-top: 1rem; padding-bottom: 1rem; }
+/* ## THE CHANGE IS HERE ## I moved the input width styling here */
+.qty-input { width: 70px; }
+</style>
+
+<script>
+/* URLs from Django (use your named URL for create/check if exists) */
+const CREATE_ORDER_URL = "{% url 'create_order' %}";
+const CHECK_MENUITEM_URL = "{% url 'check_menuitem' %}"; // make sure you have this view
+// get-order endpoint is built dynamically: /orders/<table_number>/get/
+
+let currentTable = null;
+let currentOrderId = null; // if editing existing order, set id
+let orderItems = []; // array of {menuitem_id, name, price, quantity}
+
+/* Helpers */
+function getCSRFToken() {
+  const name = "csrftoken=";
+  const parts = document.cookie ? document.cookie.split(";") : [];
+  for (let c of parts) {
+    c = c.trim();
+    if (c.startsWith(name)) return decodeURIComponent(c.substring(name.length));
+  }
+  return "";
+}
+
+function findOrderItemIndex(menuitem_id) {
+  return orderItems.findIndex(i => Number(i.menuitem_id) === Number(menuitem_id));
+}
+
+function addToOrder(menuitem_id, name, price, qty) {
+  const idx = findOrderItemIndex(menuitem_id);
+  if (idx > -1) {
+    orderItems[idx].quantity += qty;
+  } else {
+    orderItems.push({
+      menuitem_id: Number(menuitem_id),
+      name: name,
+      price: Number(price),
+      quantity: qty
+    });
+  }
+  updateOrderSummary();
+}
+
+/* Render order summary: includes plus/minus and delete inside the summary */
+function updateOrderSummary() {
+  const list = document.getElementById("orderItemsList");
+  list.innerHTML = "";
+  if (!orderItems.length) {
+    list.innerHTML = "<div class='text-muted'>No items yet</div>";
+    return;
+  }
+
+  orderItems.forEach((item, i) => {
+    const total = (item.price * item.quantity).toFixed(2);
+    const row = document.createElement("div");
+    row.className = "d-flex justify-content-between align-items-center mb-2";
+    row.innerHTML = `
+      <div class="d-flex align-items-center">
+        <button class="btn btn-sm btn-outline-light me-2" onclick="changeQty(${i}, -1)">−</button>
+        <span class="me-2">${item.quantity}</span>
+        <button class="btn btn-sm btn-outline-light me-3" onclick="changeQty(${i}, 1)">+</button>
+        <strong>${item.name}</strong>
+        <span class="ms-3 text-success">$ ${total}</span>
+      </div>
+      <div>
+        <button class="btn btn-sm btn-outline-danger" onclick="removeItem(${i})">Delete</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function changeQty(index, delta) {
+  orderItems[index].quantity += delta;
+  if (orderItems[index].quantity <= 0) {
+    orderItems.splice(index, 1);
+  }
+  updateOrderSummary();
+}
+
+function removeItem(index) {
+  orderItems.splice(index, 1);
+  updateOrderSummary();
+}
+
+/* Load existing order for a table (unpaid) */
+function editOrder(tableNumber) {
+  fetch(`/orders/${tableNumber}/get/`)
+    .then(res => {
+      if (!res.ok) throw new Error("فشل جلب الأوردر");
+      return res.json();
+    })
+    .then(data => {
+      if (data.order) {
+        currentTable = data.order.table_number;
+        currentOrderId = data.order.id;
+        // items expected: [{menuitem_id, name, quantity, price}]
+        orderItems = (data.items || []).map(it => ({
+          menuitem_id: Number(it.menuitem_id),
+          name: it.name,
+          price: Number(it.price || 0),
+          quantity: Number(it.quantity)
+        }));
+        document.getElementById("modalTable").textContent = "Table " + currentTable;
+        document.getElementById("orderTableSummary").textContent = currentTable;
+        updateOrderSummary();
+        new bootstrap.Modal(document.getElementById("menuModal")).show();
+      } else {
+        // no order
+        currentTable = tableNumber;
+        currentOrderId = null;
+        orderItems = [];
+        document.getElementById("modalTable").textContent = "Table " + currentTable;
+        document.getElementById("orderTableSummary").textContent = currentTable;
+        updateOrderSummary();
+        new bootstrap.Modal(document.getElementById("menuModal")).show();
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("خطأ أثناء جلب الأوردر: " + err.message);
+    });
+}
+
+/* DOM ready: attach handlers for table cards + menu add buttons + qty controls + section tabs */
+document.addEventListener("DOMContentLoaded", () => {
+  // فتح المودال عند الضغط على بطاقة الترابيزة (يبدأ أوردر جديد لو مفيش واحد)
+  document.querySelectorAll(".table-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const tableNum = card.dataset.table;
+      currentTable = tableNum;
+      document.getElementById("modalTable").textContent = "Table " + currentTable;
+      document.getElementById("orderTableSummary").textContent = currentTable;
+
+      // دايمًا نستدعي editOrder
+      editOrder(currentTable);
+    });
+  });
+
+
+  // Section tabs filter
+  document.querySelectorAll(".btn-section").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".btn-section").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const section = btn.dataset.section;
+      document.querySelectorAll(".menu-item").forEach(card => {
+        if (!section || card.dataset.section === section) card.style.display = "block";
+        else card.style.display = "none";
+      });
+    });
+  });
+
+  // delegation for qty +/- and add-to-order
+  document.addEventListener("click", (e) => {
+    const minus = e.target.closest(".qty-minus");
+    const plus = e.target.closest(".qty-plus");
+    const addBtn = e.target.closest(".add-to-order");
+
+    if (minus) {
+      const input = minus.closest(".card-body").querySelector(".qty-input");
+      input.value = Math.max(1, parseInt(input.value || "1") - 1);
+      return;
+    }
+    if (plus) {
+      const input = plus.closest(".card-body").querySelector(".qty-input");
+      input.value = Math.max(1, parseInt(input.value || "1") + 1);
+      return;
+    }
+    if (addBtn) {
+      const card = addBtn.closest(".card");
+      const itemId = addBtn.dataset.id;
+      const itemName = addBtn.dataset.name;
+      const itemPrice = parseFloat(addBtn.dataset.price);
+      const qty = parseInt(card.querySelector(".qty-input").value || "1");
+      if (!qty || qty <= 0) {
+        alert("حدد الكمية الأول!");
+        return;
+      }
+
+      // Optional: call check_menuitem to validate stock before adding (your view must exist)
+      fetch(CHECK_MENUITEM_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({ menuitem_id: itemId, quantity: qty })
+      })
+      .then(res => {
+        if (!res.ok) return res.json().then(j => Promise.reject(j));
+        return res.json();
+      })
+      .then(data => {
+        if (data.ok) {
+          addToOrder(itemId, itemName, itemPrice, qty);
+        } else {
+          let msg = "❌ المواد الناقصة:\n";
+          if (data.missing && data.missing.length) {
+            data.missing.forEach(m => msg += "- " + m + "\n");
+          } else {
+            msg += data.error || "غير معروف";
+          }
+          alert(msg);
+        }
+      })
+      .catch(err => {
+        console.error("check_menuitem error", err);
+        // If check endpoint returns structured error, show it; otherwise show generic
+        if (err && err.error) alert(err.error);
+        else alert("خطأ أثناء التحقق من المخزون.");
+      });
+    }
+  });
+
+  // clear button
+  document.getElementById("clearOrder").addEventListener("click", () => {
+    if (!confirm("هل تريد مسح كل الأصناف من هذا الأوردر؟")) return;
+    orderItems = [];
+    updateOrderSummary();
+  });
+
+  // confirm/save button
+  document.getElementById("confirmOrderFinal").addEventListener("click", () => {
+    if (!currentTable) { alert("حدد الترابيزة أول"); return; }
+    if (orderItems.length === 0) {
+      // if editing and cleared all items, we still call create_order to delete items server-side
+      if (!confirm("الأوردر فارغ، هل تريد حفظ الحالة الفارغة؟")) return;
+    }
+
+    const payload = {
+      order_type: "cafe",
+      table_number: currentTable,
+      items: orderItems.map(i => ({ menuitem_id: i.menuitem_id, quantity: i.quantity }))
+    };
+    if (currentOrderId) payload.order_id = currentOrderId;
+
+    fetch(CREATE_ORDER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken()
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.ok) {
+        // نجاح → اغلاق المودال وتحديث الصفحة (لو حابب تعيد تحميل)
+        orderItems = [];
+        updateOrderSummary();
+        // إغلاق المودال
+        const modalEl = document.getElementById("menuModal");
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+        // لو عايز تعيد تحميل الصفحة عشان تظهر حالة الطاولة (optional)
+        // location.reload();
+      } else {
+        alert("خطأ: " + (data.error || "حدث خطأ غير معروف"));
+      }
+    })
+    .catch(err => {
+      console.error("create_order error", err);
+      alert("فشل حفظ الأوردر: " + (err.message || err));
+    });
+  });
+
+});
+</script>
+
+{% endblock %}

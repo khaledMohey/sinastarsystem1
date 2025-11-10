@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+  <h2 class="mb-4 text-dark">
+    Order #{{ order.id }} 
+    {% if order.order_type == "cafe" %}
+      <span class="badge bg-info">Cafe</span>
+      - Table {{ order.table_number }}
+    {% elif order.order_type == "takeaway" %}
+      <span class="badge bg-warning text-dark">Takeaway</span>
+    {% elif order.order_type == "qeta3" %}
+      <span class="badge bg-warning text-dark">Qeta3</span>
+      {% if order.officer %}
+        - <span class="text-dark">👮 {{ order.officer.name }}</span>
+      {% endif %}
+    {% endif %}
+  </h2>
+
+  <!-- أزرار الفلترة -->
+  <div class="mb-3">
+    <button class="btn btn-outline-info btn-sm" onclick="filterItems('all')">الكل</button>
+    <button class="btn btn-outline-primary btn-sm" onclick="filterItems('barista')">☕ باريستا</button>
+    <button class="btn btn-outline-warning btn-sm" onclick="filterItems('mat3am')">🍽️ مطعم</button>
+    <button class="btn btn-outline-secondary btn-sm" onclick="filterItems('canteen')">🥪 كانتين</button>
+    <button class="btn btn-outline-dark btn-sm" onclick="filterItems('7alak')">💈 حلاق</button>
+    <button class="btn btn-outline-danger btn-sm" onclick="filterItems('shesha')">💨 شيشة</button>
+  </div>
+
+  <table class="table table-dark table-bordered">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Section</th>
+        <th>Quantity</th>
+        <th>Unit Price</th>
+        <th>Total</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in order.items.all %}
+      <tr class="order-item" data-section="{{ item.section }}">
+        <td>{{ item.menuitem.name }}</td>
+        <td>
+          {% if item.menuitem.section == "barista" %}
+            ☕ باريستا
+          {% elif item.menuitem.section == "mat3am" %}
+            🍽️ مطعم
+          {% elif item.menuitem.section == "canteen" %}
+            🥪 كانتين
+          {% elif item.menuitem.section == "7alak" %}
+            💈 حلاق
+          {% elif item.menuitem.section == "shesha" %}
+            💨 شيشة
+          {% else %}
+            {{ item.get_section_display }}
+          {% endif %}
+        </td>
+        <td>{{ item.quantity }}</td>
+        <td>${{ item.menuitem.price }}</td>
+        <td>${{ item.total_price }}</td>
+        <td>
+          <button class="btn btn-success btn-sm" onclick="markDone(this)">✔ تم</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="5" class="text-end">Subtotal:</th>
+        <td>${{ order.subtotal }}</td>
+      </tr>
+      {% if order.discount > 0 %}
+      <tr>
+        <th colspan="5" class="text-end">Discount:</th>
+        <td>- ${{ order.discount }}</td>
+      </tr>
+      {% endif %}
+      {% if order.service_charge > 0 %}
+      <tr>
+        <th colspan="5" class="text-end">Service Charge:</th>
+        <td>+ ${{ order.service_charge }}</td>
+      </tr>
+      {% endif %}
+      {% if order.tax > 0 %}
+      <tr>
+        <th colspan="5" class="text-end">Tax (14%):</th>
+        <td>+ ${{ order.tax }}</td>
+      </tr>
+      {% endif %}
+      <tr class="table-success">
+        <th colspan="5" class="text-end">Total:</th>
+        <td><strong>${{ order.total }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="mt-3">
+    <a href="{% url 'orders_list' %}" class="btn btn-secondary">Back to Orders</a>
+  </div>
+</div>
+
+<!-- JavaScript للفلترة وانهاء الأصناف -->
+<script>
+  function filterItems(section) {
+    const rows = document.querySelectorAll(".order-item");
+    rows.forEach(row => {
+      if (section === "all" || row.dataset.section === section) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+  }
+
+  function markDone(button) {
+    const row = button.closest("tr");
+    row.classList.add("table-success");
+    button.disabled = true;
+    button.textContent = "✔ تم";
+  }
+</script>
+{% endblock %}

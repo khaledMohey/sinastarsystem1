@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        min-height: 100vh;
+        color: #fff;
+    }
+    .inventory-card {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(6px);
+    }
+    .total-row {
+        background-color: rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+        color: #fff;
+        border-top: 2px solid #fff;
+    }
+    .amount-input {
+        width: 70px;
+        text-align: center;
+        margin-right: 5px;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">🏪 Sinastar Inventory</h2>
+        <div>
+            <a href="{% url 'add_sinastar_inventory' %}" class="btn btn-success">➕ Add Item</a>
+            <a href="{% url 'sinastar_inventory_history' %}" class="btn btn-info">📜 History</a>
+            <a href="{% url 'sinastar_inventory_shortage' %}" class="btn btn-danger">🚨 النواقص</a>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <a href="?type=all" class="btn {% if filter_type == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">كله</a>
+        <a href="?type=Canteen" class="btn {% if filter_type == 'Canteen' %}btn-info text-white{% else %}btn-outline-info{% endif %}">كانتين</a>
+        <a href="?type=Baresta" class="btn {% if filter_type == 'Baresta' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">بوفيه</a>
+        <a href="?type=mat3am" class="btn {% if filter_type == 'mat3am' %}btn-success{% else %}btn-outline-success{% endif %}">مطعم</a>
+        <a href="?type=7alak" class="btn {% if filter_type == '7alak' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">حلاق</a>
+        <a href="?type=shesha" class="btn {% if filter_type == 'shesha' %}btn-dark{% else %}btn-outline-dark{% endif %}">شيشة</a>
+    </div>
+
+    <!-- 🔍 Search Box -->
+    <input type="text" id="sinastarSearch" class="form-control mb-3" placeholder="Search materials...">
+
+    <div class="inventory-card">
+        <div class="table-responsive">
+            <table id="sinastarTable" class="table table-bordered text-light">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Material</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>⚠️ Minimum Stock</th>
+                        <th>Addition</th>
+                        <th>Sale Price (per unit)</th>
+                        <th>Purchase Price (per unit)</th>
+                        <th>Total Sale</th>
+                        <th>Total Purchase</th>
+                        <th>Profit</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr id="row-{{ item.id }}">
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ item.material.name }}</td>
+                        <td>{{ item.type }}</td>
+                        <td>{{ item.quantity }}</td>
+
+                        <!-- ⚠️ الحد الأدنى -->
+                        <td id="minstock-{{ item.id }}">
+                            <span id="minstock-text-{{ item.id }}">{{ item.minimum_stock }}</span>
+                            <button class="btn btn-sm btn-warning ms-2"
+                                    onclick="showEditMinStock({{ item.id }}, {{ item.minimum_stock }})">Edit</button>
+                            <div id="minstock-edit-{{ item.id }}" style="display:none;" class="mt-2">
+                                <input type="number" id="minstock-input-{{ item.id }}" 
+                                       value="{{ item.minimum_stock }}" 
+                                       class="form-control form-control-sm" style="width:100px; display:inline-block;">
+                                <button class="btn btn-success btn-sm" onclick="saveMinStock({{ item.id }})">✅ Save</button>
+                                <button class="btn btn-secondary btn-sm" onclick="cancelEditMinStock({{ item.id }})">❌ Cancel</button>
+                            </div>
+                        </td>
+
+                        <td id="addition-{{ item.id }}">{{ item.addition }}</td>
+                        <td>{{ item.addition_cost }}</td>
+                        <td>{{ item.purchase_price }}</td>
+                        <td id="sale-{{ item.id }}">{{ item.total_sale_price }}</td>
+
+                        <!-- Total Purchase + Edit -->
+                        <td id="purchase-{{ item.id }}">
+                            <span id="purchase-price-text-{{ item.id }}">{{ item.total_purchase_price }}</span>
+                            <button class="btn btn-sm btn-warning ms-2"
+                                    onclick="showEditPurchase({{ item.id }}, {{ item.total_purchase_price }})">Edit</button>
+                            <div id="purchase-edit-{{ item.id }}" style="display:none;" class="mt-2">
+                                <input type="number" id="purchase-input-{{ item.id }}" 
+                                       value="{{ item.total_purchase_price }}" 
+                                       class="form-control form-control-sm" style="width:100px; display:inline-block;">
+                                <button class="btn btn-success btn-sm" onclick="savePurchasePrice({{ item.id }})">✅ Save</button>
+                                <button class="btn btn-secondary btn-sm" onclick="cancelEditPurchase({{ item.id }})">❌ Cancel</button>
+                            </div>
+                        </td>
+
+                        <td id="profit-{{ item.id }}">{{ item.profit }}</td>
+                        <td>{{ item.created_at|date:"d M Y H:i" }}</td>
+                        <td>
+                            <div class="d-flex">
+                                <input type="number" id="amount-{{ item.id }}" value="0" min="1" class="form-control form-control-sm amount-input">
+                                <button class="btn btn-success btn-sm" onclick="updateAddition({{ item.id }}, 'increase')">➕</button>
+                                <button class="btn btn-danger btn-sm ms-1" onclick="updateAddition({{ item.id }}, 'decrease')">➖</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <th colspan="8">Totals</th>
+                        <th id="footer-sale">{{ updated_total_sum }}</th>
+                        <th id="footer-purchase">{{ total_purchase_sum }}</th>
+                        <th id="footer-profit">{{ total_profit_sum }}</th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+document.getElementById("sinastarSearch").addEventListener("keyup", function() {
+    let filter = this.value.toLowerCase();
+    let rows = document.querySelectorAll("#sinastarTable tbody tr");
+    rows.forEach(row => {
+        let text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? "" : "none";
+    });
+});
+
+function updateAddition(itemId, action) {
+    let amount = document.getElementById(`amount-${itemId}`).value || 1;
+
+    fetch(`/update_addition/${itemId}/${action}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amount: parseInt(amount) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`addition-${itemId}`).innerText = data.new_addition;
+            document.getElementById(`sale-${itemId}`).innerText = data.new_sale;
+            document.getElementById(`purchase-price-text-${itemId}`).innerText = data.new_purchase;
+            document.getElementById(`profit-${itemId}`).innerText = data.new_profit;
+
+            document.getElementById("footer-sale").innerText = data.updated_total_sum;
+            document.getElementById("footer-purchase").innerText = data.total_purchase_sum;
+            document.getElementById("footer-profit").innerText = data.total_profit_sum;
+        } else {
+            alert(data.error);
+        }
+    });
+}
+
+// ================== تعديل الحد الأدنى ==================
+function showEditMinStock(itemId, oldValue) {
+    document.getElementById(`minstock-text-${itemId}`).style.display = "none";
+    document.querySelector(`#minstock-${itemId} button`).style.display = "none";
+    document.getElementById(`minstock-edit-${itemId}`).style.display = "block";
+    document.getElementById(`minstock-input-${itemId}`).value = oldValue;
+}
+
+function cancelEditMinStock(itemId) {
+    document.getElementById(`minstock-text-${itemId}`).style.display = "inline";
+    document.querySelector(`#minstock-${itemId} button`).style.display = "inline-block";
+    document.getElementById(`minstock-edit-${itemId}`).style.display = "none";
+}
+
+function saveMinStock(itemId) {
+    let newMin = document.getElementById(`minstock-input-${itemId}`).value;
+    if (newMin === "" || isNaN(newMin)) {
+        alert("اكتب رقم صحيح للحد الأدنى");
+        return;
+    }
+
+    fetch(`/update_min_stock/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ minimum_stock: parseInt(newMin) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`minstock-text-${itemId}`).innerText = data.new_minimum_stock;
+            cancelEditMinStock(itemId);
+        } else {
+            alert(data.error);
+        }
+    });
+}
+// =======================================================
+
+function showEditPurchase(itemId, oldPrice) {
+    document.getElementById(`purchase-price-text-${itemId}`).style.display = "none";
+    document.querySelector(`#purchase-${itemId} button`).style.display = "none";
+    document.getElementById(`purchase-edit-${itemId}`).style.display = "block";
+    document.getElementById(`purchase-input-${itemId}`).value = oldPrice;
+}
+
+function cancelEditPurchase(itemId) {
+    document.getElementById(`purchase-price-text-${itemId}`).style.display = "inline";
+    document.querySelector(`#purchase-${itemId} button`).style.display = "inline-block";
+    document.getElementById(`purchase-edit-${itemId}`).style.display = "none";
+}
+
+function savePurchasePrice(itemId) {
+    let newPrice = document.getElementById(`purchase-input-${itemId}`).value;
+    if (newPrice === "" || isNaN(newPrice)) {
+        alert("اكتب رقم صحيح");
+        return;
+    }
+
+    fetch(`/update_total_purchase/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ total_purchase: parseFloat(newPrice) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`purchase-price-text-${itemId}`).innerText = data.new_total_purchase;
+            document.getElementById(`profit-${itemId}`).innerText = data.new_profit;
+            cancelEditPurchase(itemId);
+            document.getElementById("footer-purchase").innerText = data.total_purchase_sum;
+            document.getElementById("footer-profit").innerText = data.total_profit_sum;
+        } else {
+            alert(data.error);
+        }
+    });
+}
+</script>
+
+{% endblock %}

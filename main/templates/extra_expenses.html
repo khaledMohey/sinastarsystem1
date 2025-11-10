@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+  <h2 class="mb-4">📒 نسريات و تبس</h2>
+
+  <!-- تقرير ملخص -->
+  <div class="alert alert-info d-flex justify-content-between">
+    <div><strong>إجمالي النسريات:</strong> {{ total_nesrayat }} ج</div>
+    <div><strong>إجمالي التبس:</strong> {{ total_tips }} ج</div>
+    <div><strong>الإجمالي الكلي:</strong> {{ total_all }} ج</div>
+  </div>
+
+  <!-- فورم الفلترة -->
+  <form method="get" class="row g-2 mb-4">
+    <div class="col-md-3">
+      <input type="date" name="start_date" value="{{ start_date }}" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <input type="date" name="end_date" value="{{ end_date }}" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <select name="category" class="form-control">
+        <option value="">الكل</option>
+        <option value="nesrayat" {% if category_filter == "nesrayat" %}selected{% endif %}>نسريات</option>
+        <option value="tips" {% if category_filter == "tips" %}selected{% endif %}>تبس</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-primary w-100">🔎 بحث</button>
+    </div>
+  </form>
+
+  <!-- Form إضافة -->
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-md-3">{{ form.category }}</div>
+      <div class="col-md-3">{{ form.amount }}</div>
+      <div class="col-md-4">{{ form.note }}</div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-success w-100">➕ إضافة</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Table -->
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>البند</th>
+        <th>المبلغ</th>
+        <th>ملاحظة</th>
+        <th>التاريخ</th>
+        <th>حذف</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for exp in expenses %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ exp.get_category_display }}</td>
+        <td>{{ exp.amount }}</td>
+        <td>{{ exp.note|default:"-" }}</td>
+        <td>{{ exp.created_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          <a href="{% url 'delete_expense' exp.id %}" class="btn btn-sm btn-danger"
+             onclick="return confirm('هل أنت متأكد من الحذف؟');">🗑️</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-center">لا يوجد بيانات</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

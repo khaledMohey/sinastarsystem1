@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+body {
+  background: #2c2c2c;
+  color: rgb(255, 255, 255);
+  font-family: Arial, sans-serif;
+}
+.card {
+  background: rgba(0,0,0,0.7);
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.card h5 {
+  color: #ffc107;
+}
+</style>
+
+<div class="container py-5">
+  <h2 class="text-center text-light mb-4">📋 Officer Orders</h2>
+
+  <div class="row mb-4 justify-content-center">
+
+    <!-- فلتر الضابط -->
+    <div class="col-md-4">
+      <form method="get" class="d-flex">
+        <select name="officer_id" class="form-select me-2" onchange="this.form.submit()">
+          <option value="">-- كل الضباط --</option>
+          {% for o in officers %}
+            <option value="{{ o.id }}" {% if selected_officer and selected_officer.id == o.id %}selected{% endif %}>{{ o.name }}</option>
+          {% endfor %}
+        </select>
+        {% if payment_filter %}<input type="hidden" name="payment_method" value="{{ payment_filter }}">{% endif %}
+        {% if payment_status %}<input type="hidden" name="payment_status" value="{{ payment_status }}">{% endif %}
+      </form>
+    </div>
+
+    <!-- فلتر طريقة الدفع -->
+    <div class="col-md-4">
+      <form method="get" class="d-flex">
+        <select name="payment_method" class="form-select me-2" onchange="this.form.submit()">
+          <option value="">-- كل طرق الدفع --</option>
+          <option value="cash" {% if payment_filter == 'cash' %}selected{% endif %}>💵 كاش</option>
+          <option value="vodafone" {% if payment_filter == 'vodafone' %}selected{% endif %}>📱 فودافون كاش</option>
+          <option value="moagel" {% if payment_filter == 'moagel' %}selected{% endif %}>🕓 مؤجل</option>
+        </select>
+        {% if selected_officer %}<input type="hidden" name="officer_id" value="{{ selected_officer.id }}">{% endif %}
+        {% if payment_status %}<input type="hidden" name="payment_status" value="{{ payment_status }}">{% endif %}
+      </form>
+    </div>
+
+    <!-- فلتر حالة الدفع -->
+    <div class="col-md-4">
+      <form method="get" class="d-flex">
+        <select name="payment_status" class="form-select me-2" onchange="this.form.submit()">
+          <option value="">-- الكل (مدفوع وغير مدفوع) --</option>
+          <option value="paid" {% if payment_status == 'paid' %}selected{% endif %}>✅ مدفوع</option>
+          <option value="unpaid" {% if payment_status == 'unpaid' %}selected{% endif %}>❌ غير مدفوع</option>
+        </select>
+        {% if selected_officer %}<input type="hidden" name="officer_id" value="{{ selected_officer.id }}">{% endif %}
+        {% if payment_filter %}<input type="hidden" name="payment_method" value="{{ payment_filter }}">{% endif %}
+      </form>
+    </div>
+
+  </div>
+
+  {% if orders %}
+    <div class="text-center mt-4">
+      <h4 class="text-light">💰 إجمالي الفواتير: 
+        <span class="text-success">${{ total_sum|floatformat:2 }}</span>
+      </h4>
+    </div>
+  {% endif %}
+
+  {% if orders %}
+    {% for order in orders %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5>Order #{{ order.id }} | {{ order.created_at|date:"Y-m-d H:i" }}</h5>
+          {% if order.officer %}
+            <div class="mb-2 text-light">👮 {{ order.officer.name }}</div>
+          {% endif %}
+
+          {% for item in order.items.all %}
+            <div class="text-light">
+              {{ item.quantity }} × {{ item.menuitem.name }} = <strong>${{ item.menuitem.price|floatformat:2 }}</strong>
+            </div>
+          {% endfor %}
+
+          <div class="mt-2">
+            {% if order.payment_method == "cash" %}
+              <span class="badge bg-success">💵 كاش</span>
+            {% elif order.payment_method == "vodafone" %}
+              <span class="badge bg-primary">📱 فودافون كاش</span>
+            {% elif order.payment_method == "moagel" %}
+              <span class="badge bg-warning text-dark">🕓 مؤجل</span>
+              <!-- ✅ زر تسديد -->
+              <div class="mt-2">
+                <button class="btn btn-sm btn-outline-success" onclick="openPaymentModal({{ order.id }})">💰 تسديد الآن</button>
+              </div>
+            {% else %}
+              <span class="badge bg-secondary">غير محدد</span>
+            {% endif %}
+          </div>
+
+          <!-- ✅ حالة الدفع -->
+          <div class="mt-2">
+            {% if order.payment_method == "moagel" or not order.is_paid %}
+              <span class="badge bg-danger">❌ غير مدفوع</span>
+            {% else %}
+              <span class="badge bg-success">✅ مدفوع</span>
+            {% endif %}
+          </div>
+
+          <div class="mt-2 text-light">
+            Subtotal: ${{ order.calc_subtotal|floatformat:2 }}
+          </div>
+          {% if order.officer %}
+            <div class="mt-1 text-warning">
+              Discount ({{ order.officer.discount_rate|floatformat:2 }}%): - ${{ order.discount_amount|floatformat:2 }}
+            </div>
+          {% endif %}
+          <div class="mt-2 text-success fw-bold">
+            Total: ${{ order.calc_total|floatformat:2 }}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-center">❌ لا يوجد أوردرات.</p>
+  {% endif %}
+</div>
+
+<!-- ✅ Modal اختيار طريقة الدفع -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title">اختر طريقة الدفع</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <button class="btn btn-success me-2" onclick="submitPayment('cash')">💵 كاش</button>
+        <button class="btn btn-primary" onclick="submitPayment('vodafone')">📱 فودافون كاش</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentOrderId = null;
+
+function openPaymentModal(orderId) {
+  currentOrderId = orderId;
+  const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+  modal.show();
+}
+
+function submitPayment(method) {
+  if (!currentOrderId) return;
+
+  fetch(`/order/${currentOrderId}/mark-paid/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({ payment_method: method })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.error || "حدث خطأ أثناء تحديث الدفع");
+    }
+  })
+  .catch(() => {
+    alert("حدث خطأ في الاتصال بالسيرفر");
+  });
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>📝 Edit Order #{{ order.id }}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+
+    <h3>Order Items</h3>
+    {{ formset.management_form }}
+
+    <table id="order-items">
+        {% for f in formset %}
+        <tr class="order-item-form">
+            <!-- مهم: hidden fields -->
+            {{ f.id }}
+            {{ f.order }}
+
+            <td>{{ f.menuitem }}</td>
+            <td>{{ f.quantity }}</td>
+            
+        </tr>
+        {% endfor %}
+    </table>
+
+    <!-- فورم فاضي هنستخدمه كـ template -->
+    <table style="display:none;">
+        <tr id="empty-form" class="order-item-form">
+            {{ formset.empty_form.id }}
+            {{ formset.empty_form.order }}
+            <td>{{ formset.empty_form.menuitem }}</td>
+            <td>{{ formset.empty_form.quantity }}</td>
+            <td></td>
+        </tr>
+    </table>
+
+    <button type="button" id="add-item" class="btn btn-info">➕ Add another item</button>
+    <br><br>
+    <button type="submit" class="btn btn-success">💾 Save</button>
+
+
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const addButton = document.getElementById("add-item");
+        const formsetTable = document.getElementById("order-items");
+        const totalForms = document.getElementById("id_items-TOTAL_FORMS");
+
+        addButton.addEventListener("click", function() {
+            let formIndex = parseInt(totalForms.value);
+            let newFormHtml = document.getElementById("empty-form").outerHTML.replace(/__prefix__/g, formIndex);
+
+            let tempDiv = document.createElement("tbody");
+            tempDiv.innerHTML = newFormHtml;
+            let newRow = tempDiv.firstElementChild;
+
+            newRow.querySelectorAll("input, select").forEach(el => {
+                if (el.tagName === "INPUT") el.value = (el.type === "number") ? 1 : "";
+            });
+
+            formsetTable.appendChild(newRow);
+            totalForms.value = formIndex + 1;
+        });
+
+        // ✅ ضمان إرسال كل الحقول (حتى hidden)
+        document.querySelector("form").addEventListener("submit", function() {
+            document.querySelectorAll("#order-items input, #order-items select").forEach(el => {
+                el.disabled = false; // نضمن إنها كلها تتبعت
+            });
+        });
+    });
+</script>
+
+
+{% endblock %}

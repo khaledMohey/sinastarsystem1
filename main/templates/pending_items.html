@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    {% if role == 'barista' %}
+      <a href="?type=barista" class="btn btn-info btn-sm active">☕ باريستا</a>
+    {% elif role == 'mat3am' %}
+      <a href="?type=mat3am" class="btn btn-warning btn-sm active">🍽️ مطعم</a>
+    {% elif role in 'admin cashier' %}
+      <a href="{% url 'pending_items' %}" class="btn btn-secondary btn-sm {% if not inv_type %}active{% endif %}">الكل</a>
+      <a href="?type=barista" class="btn btn-info btn-sm {% if inv_type == 'barista' %}active{% endif %}">☕ باريستا</a>
+      <a href="?type=mat3am" class="btn btn-warning btn-sm {% if inv_type == 'mat3am' %}active{% endif %}">🍽️ مطعم</a>
+      <a href="?type=canteen" class="btn btn-secondary btn-sm {% if inv_type == 'canteen' %}active{% endif %}">🥪 كانتين</a>
+      <a href="?type=7alak" class="btn btn-primary btn-sm {% if inv_type == '7alak' %}active{% endif %}">💈 حلاق</a>
+      <a href="?type=shesha" class="btn btn-danger btn-sm {% if inv_type == 'shesha' %}active{% endif %}">💨 شيشة</a>
+      <a href="{% url 'waiter_items' %}" class="btn btn-success btn-sm float-end">👨‍🍳 صفحة الويتر</a>
+    {% endif %}
+  </div>
+
+    <button id="enableSound" class="btn btn-success btn-sm">🔔 تفعيل الصوت</button>
+</div>
+
+<div id="orders-container">
+{% for data in orders %}
+  <div class="card mb-3 bg-dark text-light order-card" id="order-{{ data.order.id }}">
+    <div class="card-header">
+      <strong>#{{ data.order.id }}</strong>
+      {% if data.order.order_type == "cafe" %}
+        <span class="badge bg-info">In Cafe</span> 🪑 Table {{ data.order.table_number }}
+      {% elif data.order.order_type == "takeaway" %}
+        <span class="badge bg-warning text-dark">Takeaway</span>
+      {% elif data.order.order_type == "qeta3" %}
+        <span class="badge bg-secondary">🏢 قطاع</span>
+      {% endif %}
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-bordered table-striped table-dark m-0">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>قسم</th>
+            <th>✔️</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in data.items %}
+            <tr id="item-{{ item.id }}">
+              <td>{{ item.menuitem.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>
+                {% if item.menuitem.section == "barista" %} ☕ باريستا
+                {% elif item.menuitem.section == "mat3am" %} 🍽️ مطعم
+                {% elif item.menuitem.section == "canteen" %} 🥪 كانتين
+                {% elif item.menuitem.section == "7alak" %} 💈 حلاق
+                {% elif item.menuitem.section == "shesha" %} 💨 شيشة
+                {% endif %}
+              </td>
+              <td>
+                <button class="btn btn-success btn-sm mark-done" data-id="{{ item.id }}" data-order="{{ data.order.id }}">✔️ تم</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% empty %}
+  <p class="text-center">لا يوجد أوردرات حالياً 🎉</p>
+{% endfor %}
+</div>
+
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.startsWith(name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// ====== إعداد الصوت ======
+const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+audio.load();
+let soundEnabled = false;
+
+// تفعيل الصوت بالزر فقط
+document.getElementById("enableSound").addEventListener("click", async () => {
+  try {
+    await audio.play();
+    audio.pause();
+    audio.currentTime = 0;
+    soundEnabled = true;
+    const btn = document.getElementById("enableSound");
+    btn.textContent = "🔊 الصوت مفعل";
+    btn.classList.replace("btn-success", "btn-secondary");
+    btn.disabled = true;
+  } catch (err) {
+    alert("⚠️ من فضلك اضغط الزر مرة أخرى للسماح بتشغيل الصوت.");
+  }
+});
+
+// ====== تحديث حالة الأوردر ======
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".mark-done").forEach(btn => {
+    btn.addEventListener("click", () => {
+      let itemId = btn.dataset.id;
+      let orderId = btn.dataset.order;
+
+      fetch(`/mark-item-done/${itemId}/`, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrftoken,
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({})
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById(`item-${itemId}`).remove();
+          let tbody = document.querySelector(`#order-${orderId} tbody`);
+          if (tbody.children.length === 0) {
+            document.getElementById(`order-${orderId}`).remove();
+          }
+        }
+      });
+    });
+  });
+});
+
+// ====== تحديث الأوردرات ======
+let lastOrderIds = Array.from(document.querySelectorAll(".order-card")).map(el => el.id);
+
+function checkNewOrders() {
+  let url = window.location.pathname + window.location.search;
+  fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+    .then(res => res.text())
+    .then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const newCards = doc.querySelectorAll(".order-card");
+      const newOrderIds = Array.from(newCards).map(el => el.id);
+      const newOnes = newOrderIds.filter(id => !lastOrderIds.includes(id));
+
+      if (newOnes.length > 0) {
+        document.querySelector("#orders-container").innerHTML =
+          doc.querySelector("#orders-container").innerHTML;
+
+        // تشغيل الصوت لو مفعل
+        if (soundEnabled) {
+          audio.currentTime = 0;
+          audio.play().catch(err => console.log("❌ لم يتم تشغيل الصوت:", err));
+        }
+
+        // وميض للأوردر الجديد وإشعار الرسالة
+        const urlParams = new URLSearchParams(window.location.search);
+        const sectionType = urlParams.get('type');
+        let sectionName = '';
+
+        if (sectionType === 'barista') sectionName = '☕ الباريستا';
+        else if (sectionType === 'mat3am') sectionName = '🍽️ المطعم';
+        else if (sectionType === 'canteen') sectionName = '🥪 الكانتين';
+        else if (sectionType === '7alak') sectionName = '💈 الحلاق';
+        else if (sectionType === 'shesha') sectionName = '💨 الشيشة';
+        else sectionName = 'عام';
+
+
+        newOnes.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.style.animation = "flash 1s ease-in-out 3";
+            const orderNumber = id.replace("order-", "#");
+
+            // 🔔 رسالة تنبيه (Alert Notification)
+            alert(`🔔 أوردر جديد لـ ${sectionName}! رقم: ${orderNumber}`);
+          }
+        });
+      }
+
+      lastOrderIds = newOrderIds;
+    })
+    .catch(err => console.error("خطأ في التحديث:", err));
+}
+
+// ====== أنميشن الوميض ======
+const style = document.createElement("style");
+style.textContent = `
+@keyframes flash {
+  0% { box-shadow: 0 0 0px #00ff00; }
+  50% { box-shadow: 0 0 20px #00ff00; }
+  100% { box-shadow: 0 0 0px #00ff00; }
+}
+`;
+document.head.appendChild(style);
+
+// ====== تشغيل التحديث التلقائي ======
+setInterval(checkNewOrders, 7000);
+</script>
+
+{% endblock %}

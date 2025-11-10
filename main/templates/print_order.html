@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>فاتورة رقم {{ order.id }}</title>
+  <style>
+  body {
+    font-family: "Cairo", sans-serif;
+    background: white;
+    color: black;
+    margin: 0;
+    padding: 10px;
+    width: 75mm; /* ✅ عرض مناسب للطابعة الحرارية */
+    font-size: 12px; /* ✅ تكبير الخط الأساسي */
+    box-sizing: border-box;
+  }
+
+  .header {
+    text-align: center;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+
+  .header h2 {
+    margin: 0;
+    font-size: 15px; /* ✅ أكبر شوية */
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  th, td {
+    font-size: 11px; /* ✅ أكبر لتوضيح الأرقام */
+    padding: 4px 2px;
+    text-align: center;
+    word-wrap: break-word;
+  }
+
+  /* ✅ عرض الأعمدة مضبوط */
+  th:nth-child(1), td:nth-child(1) { width: 42%; } /* الصنف */
+  th:nth-child(2), td:nth-child(2) { width: 15%; } /* الكمية */
+  th:nth-child(3), td:nth-child(3) { width: 18%; } /* السعر */
+  th:nth-child(4), td:nth-child(4) { width: 25%; } /* الإجمالي */
+
+  .totals {
+    border-top: 1px dashed #000;
+    margin-top: 10px;
+    padding-top: 8px;
+    font-size: 12px; /* ✅ أوضح */
+  }
+
+  .totals h3 {
+    font-size: 13px;
+    margin: 6px 0;
+    text-align: center;
+  }
+
+  .footer {
+    text-align: center;
+    border-top: 1px dashed #000;
+    margin-top: 10px;
+    padding-top: 8px;
+    font-size: 11px;
+  }
+
+  .no-print {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .no-print button {
+    padding: 6px 12px;
+    font-size: 13px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: white;
+    transition: 0.3s;
+  }
+
+  .no-print button.print-btn {
+    background: #007bff;
+  }
+
+  .no-print button.print-btn:hover {
+    background: #0056b3;
+  }
+
+  .no-print button.back-btn {
+    background: #6c757d;
+  }
+
+  .no-print button.back-btn:hover {
+    background: #dc3545;
+  }
+
+  @media print {
+    .no-print {
+      display: none;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      width: 72mm; /* ✅ عشان يفضل داخل حدود الطباعة */
+      font-size: 12px;
+    }
+  }
+</style>
+
+
+
+</head>
+<body>
+
+  <div class="header">
+    <h2>☕ SinaStar</h2>
+    <p>فاتورة رقم: {{ order.id }}</p>
+    <p>{{ order.created_at|date:"Y-m-d H:i" }}</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>الصنف</th>
+        <th>الكمية</th>
+        <th>السعر</th>
+        <th>الإجمالي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.menuitem.name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.menuitem.price|floatformat:2 }}</td>
+        <td>{{ item.line_total|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <p>الإجمالي الفرعي: {{ subtotal|floatformat:2 }} ج.م</p>
+    <p>الخصم: {{ discount|floatformat:2 }} ج.م</p>
+    <p>الضريبة: {{ tax|floatformat:2 }} ج.م</p>
+    <hr>
+    <h3>الإجمالي النهائي: {{ total|floatformat:2 }} ج.م</h3>
+  </div>
+
+  <div class="footer">
+    <p>شكراً لتعاملكم مع SinaStar 💫</p>
+    
+  </div>
+
+  <div class="no-print">
+    <button class="print-btn" onclick="window.print()">🖨️ طباعة</button>
+    <a href="{% url 'pay_order' order.id %}" class="back-btn">⬅️ رجوع</a>
+  </div>
+
+</body>
+</html>

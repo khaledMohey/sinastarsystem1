@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #2c5364, #203a43, #0f2027);
+        color: white;
+    }
+    .shortage-card {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.4);
+        backdrop-filter: blur(5px);
+    }
+    th, td { vertical-align: middle !important; }
+</style>
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <h2 class="fw-bold text-danger">🚨 النواقص (Below Minimum Stock)</h2>
+        <div>
+            <a href="{% url 'sinastar_inventory_list' %}" class="btn btn-success me-2">⬅️ رجوع للمخزن</a>
+            <a href="?export=pdf" class="btn btn-warning">📄 تصدير PDF</a>
+        </div>
+    </div>
+
+    {% if items %}
+    <div class="shortage-card">
+        <table class="table table-bordered table-striped text-center align-middle table-dark">
+            <thead class="table-danger">
+                <tr>
+                    <th>#</th>
+                    <th>Material</th>
+                    <th>Type</th>
+                    <th>Current Addition</th>
+                    <th>⚠️ Minimum Stock</th>
+                    <th>Deficit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="table-danger">
+                    <td>{{ forloop.counter }}</td>
+                    <td class="fw-bold">{{ item.material.name }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.addition }}</td>
+                    <td>{{ item.minimum_stock }}</td>
+                    <td class="fw-bold text-warning">{{ item.deficit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success text-center fs-5 shadow">
+        ✅ المخزون تمام، مفيش نواقص حالياً
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

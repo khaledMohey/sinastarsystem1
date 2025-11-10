@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">📊 Monthly Closings</h2>
+        <a href="{% url 'create_monthly_closing' %}" class="btn btn-primary">➕ Create Closing</a>
+    </div>
+
+    <!-- جدول الـ Summary -->
+    <div class="card shadow p-3 mb-4">
+        <h4 class="fw-bold mb-3">📑 Closings Summary</h4>
+        <table class="table table-striped table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>اجمالي المباع (الاوردرات)</th>
+                    <th>سعر بيع المتبقي فلمخزن (المخزن)</th>
+                    <th>اجمالي سعر الشراء (history)</th>
+                    <th>الربح الاجمالي</th>
+                    <th>الربح المتبقي لو بعت المخزن</th>
+                    <th>الربح الفعلي</th>
+                    <th>توتال النسريات</th>   <!-- جديد -->
+                    <th>توتال التبس</th>      <!-- جديد -->
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for closing in closings %}
+                <tr>
+                    <td>{{ closing.start_date|date:"d M Y" }}</td>
+                    <td>{{ closing.end_date|date:"d M Y" }}</td>
+                    <td>{{ closing.total_sales_orders }}</td>
+                    <td>{{ closing.total_sales_inventory }}</td>
+                    <td>{{ closing.total_purchase_inventory }}</td>
+                    <td>{{ closing.total_profit }}</td>
+                    <td>{{ closing.profit_from_inventory }}</td>
+                    <td>{{ closing.actual_profit }}</td>
+                    <td>{{ closing.total_nesrayat }}</td>   <!-- جديد -->
+                    <td>{{ closing.total_tips }}</td>       <!-- جديد -->
+                    <td>{{ closing.created_at|date:"d M Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="text-muted">No closings found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- باقي الجداول زي ما هي -->
+    <!-- جدول المواد المباعة -->
+    <div class="card shadow p-3 mt-5">
+        <h4 class="fw-bold mb-3">📦 Sold Materials (من المخزن)</h4>
+        <form method="get" class="mb-3 d-flex gap-2">
+            <input type="date" name="sold_start" value="{{ sold_start }}" class="form-control" style="max-width:200px;">
+            <input type="date" name="sold_end" value="{{ sold_end }}" class="form-control" style="max-width:200px;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <a href="{% url 'monthly_closing_list' %}" class="btn btn-secondary">♻️ Reset</a>
+        </form>
+        <table class="table table-striped table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Material</th>
+                    <th>Quantity</th>
+                    <th>Addition</th>
+                    <th>Addition Cost</th>
+                    <th>Purchase Price</th>
+                    <th>Total Sale Price</th>
+                    <th>Total Purchase Price</th>
+                    <th>Profit</th>
+                    <th>Type</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in sold_history %}
+                <tr>
+                    <td>{{ item.material.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.addition }}</td>
+                    <td>{{ item.addition_cost }}</td>
+                    <td>{{ item.purchase_price }}</td>
+                    <td>{{ item.total_sale_price }}</td>
+                    <td>{{ item.total_purchase_price }}</td>
+                    <td>{{ item.profit }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.created_at|date:"d M Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-muted">No sold materials found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-secondary fw-bold">
+                <tr>
+                    <td>Totals</td>
+                    <td>{{ total_quantity }}</td>
+                    <td>{{ total_addition }}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>{{ total_sale }}</td>
+                    <td>{{ total_purchase }}</td>
+                    <td>{{ total_profit }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- جدول SinastarInventoryHistory -->
+    <div class="card shadow p-3 mt-5">
+        <h4 class="fw-bold mb-3">📜 Sinastar Inventory History</h4>
+        <form method="get" class="mb-3 d-flex gap-2">
+            <input type="date" name="inv_start" value="{{ inv_start }}" class="form-control" style="max-width:200px;">
+            <input type="date" name="inv_end" value="{{ inv_end }}" class="form-control" style="max-width:200px;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <a href="{% url 'monthly_closing_list' %}" class="btn btn-secondary">♻️ Reset</a>
+        </form>
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Material</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Addition</th>
+                    <th>Sale Price (per unit)</th>
+                    <th>Purchase Price (per unit)</th>
+                    <th>Total Sale</th>
+                    <th>Total Purchase</th>
+                    <th>Profit</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory_history %}
+                <tr>
+                    <td>{{ item.material.name }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.addition }}</td>
+                    <td>{{ item.addition_cost }}</td>
+                    <td>{{ item.purchase_price }}</td>
+                    <td>{{ item.total_sale_price }}</td>
+                    <td>{{ item.total_purchase_price }}</td>
+                    <td>{{ item.profit }}</td>
+                    <td>{{ item.created_at|date:"d M Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-muted">No history found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-secondary fw-bold">
+                <tr>
+                    <td colspan="6">Totals</td>
+                    <td>{{ updated_total_sum }}</td>
+                    <td>{{ total_purchase_sum }}</td>
+                    <td>{{ total_profit_sum }}</td>
+                    <td>-</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- جدول SinastarInventory (المخزن الحالي) -->
+    <div class="card shadow p-3 mt-5">
+        <h4 class="fw-bold mb-3">🏬 Current Sinastar Inventory</h4>
+        <form method="get" class="mb-3 d-flex gap-2">
+            <input type="date" name="store_start" value="{{ store_start }}" class="form-control" style="max-width:200px;">
+            <input type="date" name="store_end" value="{{ store_end }}" class="form-control" style="max-width:200px;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <a href="{% url 'monthly_closing_list' %}" class="btn btn-secondary">♻️ Reset</a>
+        </form>
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Material</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Addition</th>
+                    <th>Sale Price (per unit)</th>
+                    <th>Purchase Price (per unit)</th>
+                    <th>Total Sale</th>
+                    <th>Total Purchase</th>
+                    <th>Profit</th>
+                    <th>Updated At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in current_inventory %}
+                <tr>
+                    <td>{{ item.material.name }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.addition }}</td>
+                    <td>{{ item.addition_cost }}</td>
+                    <td>{{ item.purchase_price }}</td>
+                    <td>{{ item.total_sale_price }}</td>
+                    <td>{{ item.total_purchase_price }}</td>
+                    <td>{{ item.profit }}</td>
+                    <td>{{ item.updated_at|date:"d M Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-muted">No inventory found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-secondary fw-bold">
+                <tr>
+                    <td colspan="6">Totals</td>
+                    <td>{{ store_total_sale }}</td>
+                    <td>{{ store_total_purchase }}</td>
+                    <td>{{ store_total_profit }}</td>
+                    <td>-</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- جدول Orders -->
+    <div class="card shadow p-3 mt-5">
+        <h4 class="fw-bold mb-3">🧾 Orders</h4>
+        <form method="get" class="mb-3 d-flex gap-2">
+            <input type="date" name="order_start" value="{{ order_start }}" class="form-control" style="max-width:200px;">
+            <input type="date" name="order_end" value="{{ order_end }}" class="form-control" style="max-width:200px;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <a href="{% url 'monthly_closing_list' %}" class="btn btn-secondary">♻️ Reset</a>
+        </form>
+        <table class="table table-striped table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Cashier</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>#{{ order.id }}</td>
+                    <td>{{ order.order_type }}</td>
+                    <td>{% if order.cashier %} {{ order.cashier.username }} {% else %}-{% endif %}</td>
+                    <td>
+                        {% if order.is_paid %}
+                            <span class="badge bg-success">Paid</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unpaid</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ order.get_total }}</td>
+                    <td>{{ order.created_at|date:"d M Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted">No orders found</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-secondary fw-bold">
+                <tr>
+                    <td colspan="4">Totals</td>
+                    <td>{{ total_orders_sales }}</td>
+                    <td>{{ total_orders }} Orders</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- جدول Extra Expenses (النسريات والتبس) -->
+    <div class="card shadow p-3 mt-5">
+        <h4 class="fw-bold mb-3">📒 النسريات والتبس</h4>
+        <form method="get" class="mb-3 d-flex gap-2">
+            <input type="date" name="exp_start" value="{{ exp_start }}" class="form-control" style="max-width:200px;">
+            <input type="date" name="exp_end" value="{{ exp_end }}" class="form-control" style="max-width:200px;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <a href="{% url 'monthly_closing_list' %}" class="btn btn-secondary">♻️ Reset</a>
+        </form>
+
+        <div class="alert alert-info d-flex justify-content-between">
+            <div><strong>إجمالي النسريات:</strong> {{ total_nesrayat }} ج</div>
+            <div><strong>إجمالي التبس:</strong> {{ total_tips }} ج</div>
+            <div><strong>الإجمالي الكلي:</strong> {{ total_all_exp }} ج</div>
+        </div>
+
+        <table class="table table-bordered table-striped text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>البند</th>
+                    <th>المبلغ</th>
+                    <th>ملاحظة</th>
+                    <th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in expenses %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ exp.get_category_display }}</td>
+                    <td>{{ exp.amount }}</td>
+                    <td>{{ exp.note|default:"-" }}</td>
+                    <td>{{ exp.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-muted">لا يوجد بيانات</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}
